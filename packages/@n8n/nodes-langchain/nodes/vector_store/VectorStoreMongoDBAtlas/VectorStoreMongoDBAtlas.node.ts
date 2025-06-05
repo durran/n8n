@@ -119,33 +119,20 @@ export const EMBEDDING_NAME = 'embedding';
 export const METADATA_FIELD_NAME = 'metadata_field';
 
 /**
- * To avoid using a single MongoClient across multiple Nodes, we keep a map
- * of clients keyed by the Node's ID.
- */
-export const MONGO_CLIENTS = new Map<string, MongoClient>();
-
-/**
  * Type used for cleaner, more intentional typing.
  */
 export type IFunctionsContext = IExecuteFunctions | ISupplyDataFunctions | ILoadOptionsFunctions;
 
 /**
- * Get the mongo client for the node id. If it does not exist, create a new one
- * and store it in the map.
+ * Get the mongo client.
  * @param context - The context.
  * @returns the MongoClient for the node.
  */
 export async function getMongoClient(context: IFunctionsContext) {
-	const nodeId = context.getNode().id;
-	let client = MONGO_CLIENTS.get(nodeId);
-	if (!client) {
-		const credentials = await context.getCredentials(MONGODB_CREDENTIALS);
-		client = new MongoClient(credentials.connectionString as string, {
-			appName: 'devrel.integration.n8n_vector_integ',
-		});
-		MONGO_CLIENTS.set(nodeId, client);
-	}
-	return client;
+	const credentials = await context.getCredentials(MONGODB_CREDENTIALS);
+	return new MongoClient(credentials.connectionString as string, {
+		appName: 'devrel.integration.n8n_vector_integ',
+	});
 }
 
 /**
@@ -153,8 +140,7 @@ export async function getMongoClient(context: IFunctionsContext) {
  * @param context - The context.
  * @returns the Db object.
  */
-export async function getDatabase(context: IFunctionsContext) {
-	const client = await getMongoClient(context);
+export async function getDatabase(context: IFunctionsContext, client: MongoClient) {
 	const credentials = await context.getCredentials(MONGODB_CREDENTIALS);
 	return client.db(credentials.database as string);
 }
@@ -165,7 +151,8 @@ export async function getDatabase(context: IFunctionsContext) {
  * @returns The list of collections.
  */
 export async function getCollections(this: ILoadOptionsFunctions) {
-	const db = await getDatabase(this);
+	const client = await getMongoClient(this);
+	const db = await getDatabase(this, client);
 	try {
 		const collections = await db.listCollections().toArray();
 		const results = collections.map((collection) => ({
@@ -176,6 +163,8 @@ export async function getCollections(this: ILoadOptionsFunctions) {
 		return { results };
 	} catch (error) {
 		throw new NodeOperationError(this.getNode(), `Error: ${error.message}`);
+	} finally {
+		await client.close();
 	}
 }
 
@@ -249,8 +238,9 @@ export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 	insertFields,
 	sharedFields,
 	async getVectorStoreClient(context, _filter, embeddings, itemIndex) {
+		const client = await getMongoClient(context);
 		try {
-			const db = await getDatabase(context);
+			const db = await getDatabase(context, client);
 			const collectionName = getCollectionName(context, itemIndex);
 			const mongoVectorIndexName = getVectorIndexName(context, itemIndex);
 			const embeddingFieldName = getEmbeddingFieldName(context, itemIndex);
@@ -284,11 +274,14 @@ export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 				itemIndex,
 				description: 'Please check your MongoDB Atlas connection details',
 			});
+		} finally {
+			await client.close();
 		}
 	},
 	async populateVectorStore(context, embeddings, documents, itemIndex) {
+		const client = await getMongoClient(context);
 		try {
-			const db = await getDatabase(context);
+			const db = await getDatabase(context, client);
 			const collectionName = getCollectionName(context, itemIndex);
 			const mongoVectorIndexName = getVectorIndexName(context, itemIndex);
 			const embeddingFieldName = getEmbeddingFieldName(context, itemIndex);
@@ -311,6 +304,8 @@ export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 				itemIndex,
 				description: 'Please check your MongoDB Atlas connection details',
 			});
+		} finally {
+			await client.close();
 		}
 	},
 }) {}
