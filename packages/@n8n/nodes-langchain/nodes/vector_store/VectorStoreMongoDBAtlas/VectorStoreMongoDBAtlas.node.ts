@@ -169,52 +169,26 @@ export async function getCollections(this: ILoadOptionsFunctions) {
 }
 
 /**
- * Get the MongoDB collection name from the context.
- * @param context The context
- * @param itemIndex The item index.
- * @returns The name.
+ * Get a parameter from the context.
+ * @param key - The key of the parameter.
+ * @param context - The context.
+ * @param itemIndex - The index.
+ * @returns The value.
  */
-export function getCollectionName(context: IFunctionsContext, itemIndex: number): string {
-	return context.getNodeParameter(MONGODB_COLLECTION_NAME, itemIndex, '', {
+export function getParameter(key: string, context: IFunctionsContext, itemIndex: number): string {
+	const value = context.getNodeParameter(key, itemIndex, '', {
 		extractValue: true,
 	}) as string;
+	if (typeof value !== 'string') {
+		throw new NodeOperationError(context.getNode(), `Parameter ${key} must be a string`);
+	}
+	return value;
 }
 
-/**
- * Get the MongoDB vector index name from the context.
- * @param context The context
- * @param itemIndex The item index.
- * @returns The name.
- */
-export function getVectorIndexName(context: IFunctionsContext, itemIndex: number): string {
-	return context.getNodeParameter(VECTOR_INDEX_NAME, itemIndex, '', {
-		extractValue: true,
-	}) as string;
-}
-
-/**
- * Get the MongoDB embedding name from the context.
- * @param context The context
- * @param itemIndex The item index.
- * @returns The name.
- */
-export function getEmbeddingFieldName(context: IFunctionsContext, itemIndex: number): string {
-	return context.getNodeParameter(EMBEDDING_NAME, itemIndex, '', {
-		extractValue: true,
-	}) as string;
-}
-
-/**
- * Get the MongoDB metadata field name from the context.
- * @param context The context
- * @param itemIndex The item index.
- * @returns The name.
- */
-export function getMetadataFieldName(context: IFunctionsContext, itemIndex: number): string {
-	return context.getNodeParameter(METADATA_FIELD_NAME, itemIndex, '', {
-		extractValue: true,
-	}) as string;
-}
+export const getCollectionName = getParameter.bind(null, MONGODB_COLLECTION_NAME);
+export const getVectorIndexName = getParameter.bind(null, VECTOR_INDEX_NAME);
+export const getEmbeddingFieldName = getParameter.bind(null, EMBEDDING_NAME);
+export const getMetadataFieldName = getParameter.bind(null, METADATA_FIELD_NAME);
 
 export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 	meta: {
@@ -274,8 +248,6 @@ export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 				itemIndex,
 				description: 'Please check your MongoDB Atlas connection details',
 			});
-		} finally {
-			await client.close();
 		}
 	},
 	async populateVectorStore(context, embeddings, documents, itemIndex) {
@@ -304,8 +276,6 @@ export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 				itemIndex,
 				description: 'Please check your MongoDB Atlas connection details',
 			});
-		} finally {
-			await client.close();
 		}
 	},
 }) {}
