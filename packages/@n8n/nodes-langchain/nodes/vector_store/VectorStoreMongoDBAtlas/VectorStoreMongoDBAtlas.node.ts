@@ -121,7 +121,7 @@ export const METADATA_FIELD_NAME = 'metadata_field';
 /**
  * Type used for cleaner, more intentional typing.
  */
-export type IFunctionsContext = IExecuteFunctions | ISupplyDataFunctions | ILoadOptionsFunctions;
+type IFunctionsContext = IExecuteFunctions | ISupplyDataFunctions | ILoadOptionsFunctions;
 
 /**
  * Get the mongo client.
