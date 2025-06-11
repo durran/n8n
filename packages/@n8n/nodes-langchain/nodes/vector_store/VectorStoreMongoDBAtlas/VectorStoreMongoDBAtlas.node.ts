@@ -206,7 +206,7 @@ export class VectorStoreMongoDBAtlas extends createVectorStoreNode({
 		],
 		operationModes: ['load', 'insert', 'retrieve', 'update', 'retrieve-as-tool'],
 	},
-	methods: { listSearch: { getCollections } },
+	methods: { listSearch: { mongoCollectionSearch: getCollections } },
 	retrieveFields,
 	loadFields: retrieveFields,
 	insertFields,
